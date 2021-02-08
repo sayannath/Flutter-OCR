@@ -13,11 +13,9 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   File _image;
   final picker = ImagePicker();
-  String w = "";
 
   Future getImage() async {
     final pickedFile = await picker.getImage(source: ImageSource.camera);
-
     setState(() {
       if (pickedFile != null) {
         _image = File(pickedFile.path);
@@ -27,25 +25,28 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  TextEditingController script = TextEditingController();
+
   Future readText(File image) async {
     FirebaseVisionImage ourImage = FirebaseVisionImage.fromFile(image);
     TextRecognizer recognizeText = FirebaseVision.instance.textRecognizer();
     VisionText readText = await recognizeText.processImage(ourImage);
-
+    script.clear();
     for (TextBlock block in readText.blocks) {
       for (TextLine line in block.lines) {
         for (TextElement word in line.elements) {
           setState(() {
-            w = w + " " + word.text;
+            script.text = script.text + " " + word.text;
           });
         }
-        w = w + '\n';
+        script.text = script.text + '\n';
       }
     }
+    setState(() {});
   }
 
   _launchURL(String text) async {
-    var url = 'https://www.google.com/search?q=$text';
+    var url = 'https://www.google.com/search?q=$text&tbm=isch';
     if (await canLaunch(url)) {
       await launch(url);
     } else {
@@ -64,7 +65,8 @@ class _HomePageState extends State<HomePage> {
         child: Icon(Icons.add, color: Colors.white),
         onPressed: () async {
           setState(() {
-            w="";
+            script.clear();
+          _image = null;
           });
           await getImage();
         },
@@ -72,51 +74,91 @@ class _HomePageState extends State<HomePage> {
       body: Container(
         height: MediaQuery.of(context).size.height,
         width: MediaQuery.of(context).size.width,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            _image == null
-                ? Text(
-                    'No image selected.',
-                    style: TextStyle(fontSize: 20, color: Colors.white),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [              
+              SizedBox(height: 20),
+              _image == null
+                  ? Text(
+                      'No image selected.',
+                      style: TextStyle(fontSize: 20, color: Colors.white),
+                    )
+                  : Container(height: 300, width: 300, child: Image.file(_image)),
+              SizedBox(height: 20),
+              Visibility(
+                visible: _image == null && script.text.length == 0 ? false : true,
+                child: SizedBox(
+                  width: 200,
+                  child: RaisedButton(
+                    onPressed: () async {
+                      await readText(_image);
+                    },
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25)),
+                    color: Colors.red,
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Text("Get Text"),
+                  ),
+                ),
+              ),
+              script.text != null
+                  ? Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: TextFormField(
+                        controller: script,
+                        minLines: 5,
+                        maxLines: 100,
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                        onChanged: (val) {
+                          setState(() {});
+                        },
+                        decoration: InputDecoration(
+                          prefixIcon: Icon(Icons.text_fields, color: Colors.white),
+                          focusColor: Colors.black26,
+                          fillColor: Colors.black26,
+                          filled: true,
+                          hintText: "Enter your resume script!",
+                          hintStyle: TextStyle(color: Colors.grey),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: BorderSide(
+                              color: Colors.white60,
+                              width: 1.0,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: BorderSide(
+                              color: Colors.white60,
+                              width: 4.0,
+                            ),
+                          ),
+                        ),
+                      ),
                   )
-                : Container(height: 300, width: 300, child: Image.file(_image)),
-            SizedBox(height: 20),
-            Visibility(
-              visible: _image == null ? false : true,
-              child: SizedBox(
-                width: 200,
-                child: RaisedButton(
-                  onPressed: () async {
-                   await readText(_image);
-                  },
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25)),
-                  color: Colors.red,
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Text("Get Text"),
+                  : Text("No Text found"),
+              SizedBox(height: 20),
+              Visibility(
+                visible: _image == null && script.text.length == 0 ? false : true,
+                child: SizedBox(
+                  width: 200,
+                  child: RaisedButton(
+                    onPressed: () {
+                      _launchURL(script.text);
+                    },
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25)),
+                    color: Colors.red,
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Text("Search"),
+                  ),
                 ),
-              ),
-            ),
-            SizedBox(height: 20),
-            Visibility(
-              visible: _image == null ? false : true,
-              child: SizedBox(
-                width: 200,
-                child: RaisedButton(
-                  onPressed: () {
-                    _launchURL(w);
-                  },
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25)),
-                  color: Colors.red,
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Text("Search"),
-                ),
-              ),
-            )
-          ],
+              ),              
+              SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );
