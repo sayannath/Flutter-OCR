@@ -1,3 +1,4 @@
+import 'package:animated_splash/animated_splash.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_to_text/views/homePage.dart';
@@ -17,10 +18,14 @@ class MyApp extends StatelessWidget {
       DeviceOrientation.portraitDown,
     ]);
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Image to Text',
-      theme: ThemeData.dark(),
-      home: HomePage(),
-    );
+        debugShowCheckedModeBanner: false,
+        title: 'Image to Text',
+        theme: ThemeData.dark(),
+        home: AnimatedSplash(
+          imagePath: 'assets/logo.png',
+          home: HomePage(),
+          duration: 2500,
+          type: AnimatedSplashType.StaticDuration,
+        ));
   }
 }

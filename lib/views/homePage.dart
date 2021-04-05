@@ -1,9 +1,15 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_ml_vision/firebase_ml_vision.dart';
+
+enum AppState {
+  free,
+  picked,
+  cropped,
+}
 
 class HomePage extends StatefulWidget {
   @override
@@ -11,14 +17,24 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  AppState state;
   File _image;
   final picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    state = AppState.free;
+  }
 
   Future getImage() async {
     final pickedFile = await picker.getImage(source: ImageSource.camera);
     setState(() {
       if (pickedFile != null) {
         _image = File(pickedFile.path);
+        setState(() {
+          state = AppState.picked;
+        });
       } else {
         print('No image selected.');
       }
@@ -45,31 +61,22 @@ class _HomePageState extends State<HomePage> {
     setState(() {});
   }
 
-  _launchURL(String text) async {
-    var url = 'https://www.google.com/search?q=$text&tbm=isch';
-    if (await canLaunch(url)) {
-      await launch(url);
-    } else {
-      throw 'Could not launch $url';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Search'),
+        title: Text('OCR App'),
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.red,
-        child: Icon(Icons.add, color: Colors.white),
-        onPressed: () async {
-          setState(() {
-            script.clear();
-          _image = null;
-          });
-          await getImage();
+        onPressed: () {
+          if (state == AppState.free) {
+            getImage();
+          } else if (state == AppState.picked)
+            cropImage();
+          else if (state == AppState.cropped) getText();
         },
+        child: buildButtonIcon(),
       ),
       body: Container(
         height: MediaQuery.of(context).size.height,
@@ -78,35 +85,20 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
-            children: [              
+            children: [
               SizedBox(height: 20),
               _image == null
                   ? Text(
                       'No image selected.',
                       style: TextStyle(fontSize: 20, color: Colors.white),
                     )
-                  : Container(height: 300, width: 300, child: Image.file(_image)),
+                  : Container(
+                      height: 300, width: 300, child: Image.file(_image)),
               SizedBox(height: 20),
-              Visibility(
-                visible: _image == null && script.text.length == 0 ? false : true,
-                child: SizedBox(
-                  width: 200,
-                  child: RaisedButton(
-                    onPressed: () async {
-                      await readText(_image);
-                    },
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25)),
-                    color: Colors.red,
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Text("Get Text"),
-                  ),
-                ),
-              ),
               script.text != null
                   ? Padding(
-                    padding: const EdgeInsets.all(32.0),
-                    child: TextFormField(
+                      padding: const EdgeInsets.all(32.0),
+                      child: TextFormField(
                         controller: script,
                         minLines: 5,
                         maxLines: 100,
@@ -115,11 +107,12 @@ class _HomePageState extends State<HomePage> {
                           setState(() {});
                         },
                         decoration: InputDecoration(
-                          prefixIcon: Icon(Icons.text_fields, color: Colors.white),
+                          prefixIcon:
+                              Icon(Icons.text_fields, color: Colors.white),
                           focusColor: Colors.black26,
                           fillColor: Colors.black26,
                           filled: true,
-                          hintText: "Enter your resume script!",
+                          hintText: "Address",
                           hintStyle: TextStyle(color: Colors.grey),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(15),
@@ -137,30 +130,69 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                       ),
-                  )
+                    )
                   : Text("No Text found"),
-              SizedBox(height: 20),
-              Visibility(
-                visible: _image == null && script.text.length == 0 ? false : true,
-                child: SizedBox(
-                  width: 200,
-                  child: RaisedButton(
-                    onPressed: () {
-                      _launchURL(script.text);
-                    },
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25)),
-                    color: Colors.red,
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Text("Search"),
-                  ),
-                ),
-              ),              
               SizedBox(height: 20),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Widget buildButtonIcon() {
+    if (state == AppState.free)
+      return Icon(Icons.add, color: Colors.white,);
+    else if (state == AppState.picked)
+      return Icon(Icons.crop,  color: Colors.white,);
+    else if (state == AppState.cropped)
+      return Icon(Icons.arrow_right,  color: Colors.white,);
+    else
+      return Container();
+  }
+
+  Future<Null> cropImage() async {
+    File croppedFile = await ImageCropper.cropImage(
+        sourcePath: _image.path,
+        aspectRatioPresets: Platform.isAndroid
+            ? [
+                CropAspectRatioPreset.square,
+                CropAspectRatioPreset.ratio3x2,
+                CropAspectRatioPreset.original,
+                CropAspectRatioPreset.ratio4x3,
+                CropAspectRatioPreset.ratio16x9
+              ]
+            : [
+                CropAspectRatioPreset.original,
+                CropAspectRatioPreset.square,
+                CropAspectRatioPreset.ratio3x2,
+                CropAspectRatioPreset.ratio4x3,
+                CropAspectRatioPreset.ratio5x3,
+                CropAspectRatioPreset.ratio5x4,
+                CropAspectRatioPreset.ratio7x5,
+                CropAspectRatioPreset.ratio16x9
+              ],
+        androidUiSettings: AndroidUiSettings(
+            toolbarTitle: 'Crop the Image',
+            toolbarColor: Color(0xff375079),
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.original,
+            lockAspectRatio: false),
+        iosUiSettings: IOSUiSettings(
+          title: 'Cropper',
+        ));
+    if (croppedFile != null) {
+      _image = croppedFile;
+      setState(() {
+        state = AppState.cropped;
+      });
+    }
+  }
+
+  void getText() async {
+    await readText(_image);
+    setState(() {
+      state = AppState.free;
+    });
   }
 }
