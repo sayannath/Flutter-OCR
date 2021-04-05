@@ -142,11 +142,20 @@ class _HomePageState extends State<HomePage> {
 
   Widget buildButtonIcon() {
     if (state == AppState.free)
-      return Icon(Icons.add, color: Colors.white,);
+      return Icon(
+        Icons.add,
+        color: Colors.white,
+      );
     else if (state == AppState.picked)
-      return Icon(Icons.crop,  color: Colors.white,);
+      return Icon(
+        Icons.crop,
+        color: Colors.white,
+      );
     else if (state == AppState.cropped)
-      return Icon(Icons.arrow_right,  color: Colors.white,);
+      return Icon(
+        Icons.arrow_right,
+        color: Colors.white,
+      );
     else
       return Container();
   }
